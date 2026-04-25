@@ -46,7 +46,7 @@ async def test_model(model):
 
 
 async def main():
-    await test_model("groq/mixtral-8x7b-32768")
-    await test_model("groq/gemma2-9b-it")
+    await test_model("groq/qwen/qwen3-32b")
+
 
 asyncio.run(main())

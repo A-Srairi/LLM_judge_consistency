@@ -9,13 +9,13 @@ async def test():
         "judges": [
             "groq/llama-3.3-70b-versatile",
             "groq/llama-3.1-8b-instant",
-            "groq/gemma2-9b-it",
+            "groq/qwen/qwen3-32b",
         ],
         "criteria": ["accuracy", "helpfulness"],
         "n_samples": 2,
     }
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=180.0) as client:
         response = await client.post("http://127.0.0.1:8000/audit", json=payload)
         data = response.json()
 

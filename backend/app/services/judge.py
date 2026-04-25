@@ -21,12 +21,11 @@ def _parse_verdict(
     latency_ms: float,
     criteria: List[str],
 ) -> Verdict:
-    """
-    Parses the raw LLM response string into a structured Verdict.
-    Handles messy JSON, markdown fences, and partial responses gracefully.
-    """
-    # strip markdown code fences if present
     cleaned = raw_response.strip()
+    
+    # strip Qwen3 chain-of-thought thinking block
+    import re as _re
+    cleaned = _re.sub(r"<think>.*?</think>", "", cleaned, flags=_re.DOTALL).strip()
     cleaned = re.sub(r"^```json\s*", "", cleaned)
     cleaned = re.sub(r"^```\s*", "", cleaned)
     cleaned = re.sub(r"\s*```$", "", cleaned)
