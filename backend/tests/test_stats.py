@@ -108,3 +108,79 @@ def test_single_judge_returns_perfect():
     ]
     result = compute_inter_judge_agreement(verdicts, ["accuracy"])
     assert result.krippendorff_alpha == 1.0
+    
+
+from app.services.stats.bootstrap import compute_bootstrap_ci
+
+
+def test_perfect_reliability():
+    """Consistent verdicts with no flips should score near 100."""
+    verdicts = []
+    for judge in ["judge-1", "judge-2"]:
+        for i in range(5):
+            verdicts.append(Verdict(
+                judge_model=judge,
+                winner=Winner.A,
+                criteria_scores={},
+                reasoning="test",
+                order="AB",
+                latency_ms=100.0,
+            ))
+            verdicts.append(Verdict(
+                judge_model=judge,
+                winner=Winner.A,
+                criteria_scores={},
+                reasoning="test",
+                order="BA",
+                latency_ms=100.0,
+            ))
+
+    score, ci = compute_bootstrap_ci(verdicts)
+
+    assert score == 100.0
+    assert ci.lower >= 90.0
+    assert ci.upper == 100.0
+
+
+def test_zero_reliability():
+    """Perfect flips + full disagreement should score near 0."""
+    verdicts = []
+    for i in range(5):
+        verdicts.append(Verdict(
+            judge_model="judge-1",
+            winner=Winner.A,
+            criteria_scores={},
+            reasoning="test",
+            order="AB",
+            latency_ms=100.0,
+        ))
+        verdicts.append(Verdict(
+            judge_model="judge-1",
+            winner=Winner.B,
+            criteria_scores={},
+            reasoning="test",
+            order="BA",
+            latency_ms=100.0,
+        ))
+
+    score, ci = compute_bootstrap_ci(verdicts)
+
+    assert score < 60.0
+    assert ci.lower < ci.upper
+
+
+def test_ci_bounds_are_ordered():
+    """Lower bound must always be <= upper bound."""
+    verdicts = [
+        Verdict(
+            judge_model="judge-1",
+            winner=Winner.A,
+            criteria_scores={},
+            reasoning="test",
+            order="AB",
+            latency_ms=100.0,
+        )
+        for _ in range(20)
+    ]
+    _, ci = compute_bootstrap_ci(verdicts)
+    assert ci.lower <= ci.upper
