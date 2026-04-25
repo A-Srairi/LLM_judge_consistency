@@ -149,27 +149,25 @@ async def run_audit(
     byok_key: Optional[str] = None,
 ) -> List[Verdict]:
     """
-    Fans out all judge calls concurrently and returns all verdicts.
-
-    For each judge × n_samples:
-      - builds AB and BA ordered prompts
-      - fires all calls simultaneously with asyncio.gather
-      - returns flat list of all verdicts
+    Fans out all judge calls with a semaphore to avoid overwhelming the API.
     """
     judges = request.judges or settings.default_judges
     criteria = request.criteria or settings.default_criteria
     n_samples = request.n_samples or settings.default_n_samples
 
-    # build all (prompt, order, judge) triples
+    # limit to 5 concurrent calls at a time
+    semaphore = asyncio.Semaphore(5)
+
+    async def throttled_call(prompt_text, order, judge):
+        async with semaphore:
+            return await _call_judge(prompt_text, order, judge, criteria, byok_key)
+
     tasks = []
     for _ in range(n_samples):
         prompts = build_evaluation_prompts(request, criteria)
         for prompt_text, order in prompts:
             for judge in judges:
-                tasks.append(
-                    _call_judge(prompt_text, order, judge, criteria, byok_key)
-                )
+                tasks.append(throttled_call(prompt_text, order, judge))
 
-    # fire everything concurrently
     verdicts = await asyncio.gather(*tasks, return_exceptions=False)
     return list(verdicts)

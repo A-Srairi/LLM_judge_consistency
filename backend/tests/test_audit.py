@@ -6,12 +6,16 @@ async def test():
         "prompt": "What is the difference between supervised and unsupervised learning?",
         "response_a": "Supervised learning uses labeled data to train models that predict outputs. Examples include classification and regression. The model learns from input-output pairs provided during training.",
         "response_b": "In supervised learning you have labels, in unsupervised you do not. Unsupervised learning finds hidden patterns. Both are types of machine learning.",
-        "judges": ["groq/llama-3.3-70b-versatile"],
+        "judges": [
+            "groq/llama-3.3-70b-versatile",
+            "groq/mixtral-8x7b-32768",
+            "groq/gemma2-9b-it",
+        ],
         "criteria": ["accuracy", "helpfulness"],
         "n_samples": 2,
     }
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         response = await client.post("http://127.0.0.1:8000/audit", json=payload)
         data = response.json()
 
