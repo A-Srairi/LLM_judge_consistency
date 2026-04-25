@@ -117,20 +117,20 @@ async def _call_judge(
     """Makes a single async LLM call and returns a parsed Verdict."""
     start = time.time()
 
-    # build litellm kwargs
     kwargs = {
         "model": judge_model,
         "messages": [{"role": "user", "content": prompt_text}],
-        "temperature": 0.0,   # deterministic — we want consistent judgments
+        "temperature": 0.0,
         "max_tokens": 512,
-        "response_format": {"type": "json_object"},
     }
 
-    # inject BYOK key if provided
+    # only OpenAI models reliably support response_format
+    if "gpt" in judge_model:
+        kwargs["response_format"] = {"type": "json_object"}
+
     if byok_key:
         kwargs["api_key"] = byok_key
 
-    # use default groq key if no BYOK
     if not byok_key and judge_model.startswith("groq/"):
         kwargs["api_key"] = settings.groq_api_key
 

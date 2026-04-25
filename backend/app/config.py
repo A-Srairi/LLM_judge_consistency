@@ -25,9 +25,9 @@ class Settings(BaseSettings):
 
     # available judge models — free groq models by default
     default_judges: List[str] = [
-        "groq/llama-3.3-70b-versatile",
-        "groq/mixtral-8x7b-32768",
-        "groq/gemma2-9b-it",
+    "groq/llama-3.3-70b-versatile",
+    "groq/llama-3.1-8b-instant",
+    "groq/gemma2-9b-it",
     ]
 
     # criteria used for evaluation

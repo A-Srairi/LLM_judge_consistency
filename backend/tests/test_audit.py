@@ -8,7 +8,7 @@ async def test():
         "response_b": "In supervised learning you have labels, in unsupervised you do not. Unsupervised learning finds hidden patterns. Both are types of machine learning.",
         "judges": [
             "groq/llama-3.3-70b-versatile",
-            "groq/mixtral-8x7b-32768",
+            "groq/llama-3.1-8b-instant",
             "groq/gemma2-9b-it",
         ],
         "criteria": ["accuracy", "helpfulness"],

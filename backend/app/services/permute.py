@@ -21,16 +21,18 @@ Your task is to evaluate which response better addresses the given prompt based 
 ## Instructions
 1. Evaluate both responses on each criterion using a score from 1 (poor) to 5 (excellent)
 2. Decide which response is overall better: {label_first}, {label_second}, or tie
-3. Respond ONLY in the following JSON format — no extra text before or after:
+3. You MUST respond with ONLY a valid JSON object. No explanations before or after. No markdown. No code fences. Raw JSON only.
 
+The JSON must follow this exact structure:
 {{
-  "winner": "{label_first}" | "{label_second}" | "tie",
+  "winner": "{label_first}" or "{label_second}" or "tie",
   "criteria_scores": {{
     {criteria_scores_template}
   }},
   "reasoning": "your brief reasoning here (2-3 sentences)"
-}}"""
+}}
 
+IMPORTANT: Output raw JSON only. First character must be {{ and last must be }}."""
 
 def _build_criteria_block(criteria: List[str]) -> str:
     descriptions = {
