@@ -63,3 +63,48 @@ def test_raises_without_both_orders():
 
     with pytest.raises(ValueError):
         compute_positional_bias(verdicts)
+        
+
+from app.services.stats.krippendorff import compute_inter_judge_agreement
+
+
+def test_perfect_agreement():
+    """When all judges agree, alpha should be high."""
+    criteria = ["accuracy", "helpfulness"]
+    verdicts = []
+    for judge in ["judge-1", "judge-2", "judge-3"]:
+        for i in range(5):
+            verdicts.append(Verdict(
+                judge_model=judge,
+                winner=Winner.A,
+                criteria_scores={
+                    "accuracy":    {"A": 5.0, "B": 2.0},
+                    "helpfulness": {"A": 5.0, "B": 2.0},
+                },
+                reasoning="test",
+                order="AB",
+                latency_ms=100.0,
+            ))
+
+    result = compute_inter_judge_agreement(verdicts, criteria)
+
+    assert result.krippendorff_alpha > 0.7
+    assert result.interpretation in ("good", "excellent")
+    assert "accuracy" in result.per_criterion
+    assert "helpfulness" in result.per_criterion
+
+
+def test_single_judge_returns_perfect():
+    """Single judge — nothing to compare, return 1.0 with a note."""
+    verdicts = [
+        Verdict(
+            judge_model="judge-1",
+            winner=Winner.A,
+            criteria_scores={"accuracy": {"A": 4.0, "B": 2.0}},
+            reasoning="test",
+            order="AB",
+            latency_ms=100.0,
+        )
+    ]
+    result = compute_inter_judge_agreement(verdicts, ["accuracy"])
+    assert result.krippendorff_alpha == 1.0
