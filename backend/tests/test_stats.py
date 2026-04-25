@@ -184,3 +184,66 @@ def test_ci_bounds_are_ordered():
     ]
     _, ci = compute_bootstrap_ci(verdicts)
     assert ci.lower <= ci.upper
+    
+
+from app.services.stats.shapley import compute_shapley_attribution
+
+
+def test_shapley_values_sum_to_one():
+    """Shapley values must always sum to 1.0."""
+    criteria = ["accuracy", "helpfulness", "conciseness"]
+    verdicts = []
+    for judge in ["judge-1", "judge-2"]:
+        for i in range(5):
+            verdicts.append(Verdict(
+                judge_model=judge,
+                winner=Winner.A if i % 2 == 0 else Winner.B,
+                criteria_scores={
+                    "accuracy":    {"A": float(i + 1), "B": float(5 - i)},
+                    "helpfulness": {"A": 3.0, "B": 3.0},
+                    "conciseness": {"A": float(i % 3 + 1), "B": 2.0},
+                },
+                reasoning="test",
+                order="AB" if i % 2 == 0 else "BA",
+                latency_ms=100.0,
+            ))
+
+    result = compute_shapley_attribution(verdicts, criteria)
+
+    total = sum(result.per_criterion.values())
+    assert abs(total - 1.0) < 0.01
+    assert result.dominant_criterion in criteria
+
+
+def test_shapley_single_criterion():
+    """Single criterion gets full attribution."""
+    verdicts = [
+        Verdict(
+            judge_model="judge-1",
+            winner=Winner.A,
+            criteria_scores={"accuracy": {"A": 4.0, "B": 2.0}},
+            reasoning="test",
+            order="AB",
+            latency_ms=100.0,
+        )
+    ]
+    result = compute_shapley_attribution(verdicts, ["accuracy"])
+    assert result.per_criterion["accuracy"] == 1.0
+    assert result.dominant_criterion == "accuracy"
+
+
+def test_shapley_returns_all_criteria():
+    """Output must contain every input criterion."""
+    criteria = ["accuracy", "helpfulness", "conciseness"]
+    verdicts = [
+        Verdict(
+            judge_model="judge-1",
+            winner=Winner.A,
+            criteria_scores={c: {"A": 4.0, "B": 2.0} for c in criteria},
+            reasoning="test",
+            order="AB",
+            latency_ms=100.0,
+        )
+    ]
+    result = compute_shapley_attribution(verdicts, criteria)
+    assert set(result.per_criterion.keys()) == set(criteria)
