@@ -79,6 +79,63 @@ export default function ResultsDashboard({ result }) {
         </div>
       </div>
 
+      {/* per judge breakdown */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <h3 className="text-sm font-medium text-gray-700 mb-4">Per-judge voting pattern</h3>
+        <div className="space-y-3">
+          {[...new Set(result.verdicts.map(v => v.judge_model))].map(judge => {
+            const judgeVerdicts = result.verdicts.filter(v => v.judge_model === judge)
+            const counts = judgeVerdicts.reduce((acc, v) => {
+              acc[v.winner] = (acc[v.winner] || 0) + 1
+              return acc
+            }, {})
+            const total = judgeVerdicts.length
+            const aCount = counts["A"] || 0
+            const bCount = counts["B"] || 0
+            const tieCount = counts["tie"] || 0
+            const dominant = aCount > bCount ? "A" : bCount > aCount ? "B" : "tie"
+            const consistency = Math.round((Math.max(aCount, bCount, tieCount) / total) * 100)
+
+            return (
+              <div key={judge} className="flex items-center gap-4">
+                <span className="font-mono text-xs text-gray-500 w-48 shrink-0">
+                  {judge.replace("groq/", "")}
+                </span>
+                <div className="flex-1 flex gap-1 h-6">
+                  {aCount > 0 && (
+                    <div
+                      className="bg-blue-200 rounded flex items-center justify-center text-xs text-blue-700 font-medium"
+                      style={{ width: `${(aCount / total) * 100}%` }}
+                    >
+                      A×{aCount}
+                    </div>
+                  )}
+                  {bCount > 0 && (
+                    <div
+                      className="bg-green-200 rounded flex items-center justify-center text-xs text-green-700 font-medium"
+                      style={{ width: `${(bCount / total) * 100}%` }}
+                    >
+                      B×{bCount}
+                    </div>
+                  )}
+                  {tieCount > 0 && (
+                    <div
+                      className="bg-gray-200 rounded flex items-center justify-center text-xs text-gray-600 font-medium"
+                      style={{ width: `${(tieCount / total) * 100}%` }}
+                    >
+                      tie×{tieCount}
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs text-gray-400 w-20 text-right">
+                  {consistency}% consistent
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       {/* verdict table */}
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <h3 className="text-sm font-medium text-gray-700 mb-4">
