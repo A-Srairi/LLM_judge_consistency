@@ -1,0 +1,20 @@
+# Python
+backend/Lenv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
