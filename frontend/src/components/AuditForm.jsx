@@ -8,15 +8,17 @@ const DEFAULT_JUDGES = [
 ]
 
 const DEFAULT_CRITERIA = ["accuracy", "helpfulness", "conciseness"]
+const TEMPERATURE_OPTIONS = [0.0, 0.3, 0.5, 0.7, 1.0]
 
 export default function AuditForm({ onSubmit, loading }) {
   const [prompt, setPrompt] = useState("")
   const [responseA, setResponseA] = useState("")
   const [responseB, setResponseB] = useState("")
-  const [judges, setJudges] = useState([DEFAULT_JUDGES[0]])
+  const [judges, setJudges] = useState(DEFAULT_JUDGES)
   const [criteria, setCriteria] = useState(DEFAULT_CRITERIA)
   const [nSamples, setNSamples] = useState(2)
   const [apiKey, setApiKey] = useState("")
+  const [temperatures, setTemperatures] = useState([0.0])
 
   function toggleJudge(judge) {
     setJudges(prev =>
@@ -30,10 +32,24 @@ export default function AuditForm({ onSubmit, loading }) {
     )
   }
 
+  function toggleTemp(t) {
+    setTemperatures(prev =>
+      prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t].sort()
+    )
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
     if (!prompt || !responseA || !responseB || judges.length === 0) return
-    onSubmit({ prompt, response_a: responseA, response_b: responseB, judges, criteria, n_samples: nSamples }, apiKey)
+    onSubmit({
+      prompt,
+      response_a: responseA,
+      response_b: responseB,
+      judges,
+      criteria,
+      n_samples: nSamples,
+      temperatures,
+    }, apiKey)
   }
 
   return (
@@ -86,7 +102,9 @@ export default function AuditForm({ onSubmit, loading }) {
                   onChange={() => toggleJudge(judge)}
                   className="rounded"
                 />
-                <span className="text-gray-600 font-mono text-xs">{judge.replace("groq/", "")}</span>
+                <span className="text-gray-600 font-mono text-xs">
+                  {judge.replace("groq/", "")}
+                </span>
               </label>
             ))}
           </div>
@@ -121,6 +139,25 @@ export default function AuditForm({ onSubmit, loading }) {
           className="w-32"
         />
         <span className="text-sm text-gray-500">{nSamples}</span>
+      </div>
+
+      <div className="flex items-start gap-3">
+        <label className="text-sm font-medium text-gray-700 mt-1 w-36 shrink-0">
+          Temperatures
+        </label>
+        <div className="flex gap-3 flex-wrap">
+          {TEMPERATURE_OPTIONS.map(t => (
+            <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={temperatures.includes(t)}
+                onChange={() => toggleTemp(t)}
+                className="rounded"
+              />
+              <span className="text-gray-600 font-mono text-xs">{t}</span>
+            </label>
+          ))}
+        </div>
       </div>
 
       <button

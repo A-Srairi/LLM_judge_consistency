@@ -24,8 +24,8 @@ export function useAudit() {
         judges: formData.judges,
         criteria: formData.criteria,
         n_samples: formData.n_samples,
+        temperatures: formData.temperatures,
       }
-
       const response = await axios.post(`${API_BASE}/audit`, payload, { headers })
       setResult(response.data)
     } catch (err) {

@@ -136,6 +136,92 @@ export default function ResultsDashboard({ result }) {
         </div>
       </div>
 
+      {/* temperature sensitivity */}
+      {result.temperature_sensitivity && (
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <h3 className="text-sm font-medium text-gray-700 mb-1">
+            Temperature sensitivity
+          </h3>
+          <p className="text-xs text-gray-400 mb-4">
+            Most stable: <span className="font-medium text-gray-600">
+              {result.temperature_sensitivity.most_stable_judge?.replace("groq/", "")}
+            </span>
+            {" · "}
+            Least stable: <span className="font-medium text-gray-600">
+              {result.temperature_sensitivity.least_stable_judge?.replace("groq/", "")}
+            </span>
+          </p>
+
+          {/* sensitivity scores */}
+          <div className="space-y-3 mb-6">
+            {Object.entries(result.temperature_sensitivity.per_judge_sensitivity).map(([judge, score]) => {
+              const pct = Math.round(score * 100)
+              const color = score < 0.1 ? "bg-green-400" : score < 0.2 ? "bg-amber-400" : "bg-red-400"
+              return (
+                <div key={judge} className="flex items-center gap-3">
+                  <span className="font-mono text-xs text-gray-500 w-48 shrink-0">
+                    {judge.replace("groq/", "")}
+                  </span>
+                  <div className="flex-1 bg-gray-100 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${color}`}
+                      style={{ width: `${Math.max(pct, 2)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-500 w-16 text-right">
+                    {score} sensitivity
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* verdict heatmap */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left py-2 px-3 font-medium text-gray-500">Judge</th>
+                  {Object.keys(
+                    Object.values(result.temperature_sensitivity.verdict_heatmap)[0] || {}
+                  ).map(temp => (
+                    <th key={temp} className="text-center py-2 px-3 font-medium text-gray-500">
+                      temp={temp}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(result.temperature_sensitivity.verdict_heatmap).map(([judge, temps]) => (
+                  <tr key={judge} className="border-b border-gray-50">
+                    <td className="py-2 px-3 font-mono text-gray-600">
+                      {judge.replace("groq/", "")}
+                    </td>
+                    {Object.entries(temps).map(([temp, dist]) => {
+                      const dominant = dist.A > dist.B && dist.A > dist.tie ? "A"
+                        : dist.B > dist.A && dist.B > dist.tie ? "B"
+                        : dist.tie > 0 ? "tie" : "split"
+                      const bgColor = dominant === "A" ? "bg-blue-50 text-blue-700"
+                        : dominant === "B" ? "bg-green-50 text-green-700"
+                        : dominant === "tie" ? "bg-gray-50 text-gray-500"
+                        : "bg-amber-50 text-amber-700"
+                      return (
+                        <td key={temp} className={`py-2 px-3 text-center rounded ${bgColor}`}>
+                          <div className="font-medium">{dominant}</div>
+                          <div className="text-gray-400 text-xs">
+                            A:{Math.round(dist.A * 100)}% B:{Math.round(dist.B * 100)}%
+                          </div>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* verdict table */}
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <h3 className="text-sm font-medium text-gray-700 mb-4">
