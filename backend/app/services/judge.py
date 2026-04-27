@@ -10,7 +10,6 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# tell litellm to stay quiet
 litellm.set_verbose = False
 
 
@@ -20,12 +19,12 @@ def _parse_verdict(
     order: str,
     latency_ms: float,
     criteria: List[str],
+    temperature: float = 0.0,
 ) -> Verdict:
     cleaned = raw_response.strip()
-    
+
     # strip Qwen3 chain-of-thought thinking block
-    import re as _re
-    cleaned = _re.sub(r"<think>.*?</think>", "", cleaned, flags=_re.DOTALL).strip()
+    cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL).strip()
     cleaned = re.sub(r"^```json\s*", "", cleaned)
     cleaned = re.sub(r"^```\s*", "", cleaned)
     cleaned = re.sub(r"\s*```$", "", cleaned)
@@ -34,28 +33,23 @@ def _parse_verdict(
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError:
-        # try to extract json from somewhere in the response
         match = re.search(r"\{.*\}", cleaned, re.DOTALL)
         if match:
             try:
                 data = json.loads(match.group())
             except json.JSONDecodeError:
-                return _fallback_verdict(judge_model, order, latency_ms, criteria)
+                return _fallback_verdict(judge_model, order, latency_ms, criteria, temperature)
         else:
-            return _fallback_verdict(judge_model, order, latency_ms, criteria)
+            return _fallback_verdict(judge_model, order, latency_ms, criteria, temperature)
 
-    # normalize winner
     raw_winner = str(data.get("winner", "tie")).strip().upper()
     if raw_winner == "A":
-        # in BA order, the judge saw response_b first labeled as A
-        # so we need to flip the winner back to reflect actual responses
         winner = Winner.B if order == "BA" else Winner.A
     elif raw_winner == "B":
         winner = Winner.A if order == "BA" else Winner.B
     else:
         winner = Winner.TIE
 
-    # normalize criteria scores
     raw_scores = data.get("criteria_scores", {})
     criteria_scores = {}
     for criterion in criteria:
@@ -63,7 +57,6 @@ def _parse_verdict(
             scores = raw_scores[criterion]
             raw_a = scores.get("A", 3.0)
             raw_b = scores.get("B", 3.0)
-            # flip scores back if BA order
             if order == "BA":
                 criteria_scores[criterion] = {
                     "A": float(raw_b),
@@ -86,6 +79,7 @@ def _parse_verdict(
         reasoning=reasoning,
         order=order,
         latency_ms=latency_ms,
+        temperature=temperature,
     )
 
 
@@ -94,8 +88,8 @@ def _fallback_verdict(
     order: str,
     latency_ms: float,
     criteria: List[str],
+    temperature: float = 0.0,
 ) -> Verdict:
-    """Returns a tie verdict when parsing fails completely."""
     return Verdict(
         judge_model=judge_model,
         winner=Winner.TIE,
@@ -103,6 +97,7 @@ def _fallback_verdict(
         reasoning="Failed to parse judge response.",
         order=order,
         latency_ms=latency_ms,
+        temperature=temperature,
     )
 
 
@@ -111,19 +106,18 @@ async def _call_judge(
     order: str,
     judge_model: str,
     criteria: List[str],
+    temperature: float = 0.0,
     byok_key: Optional[str] = None,
 ) -> Verdict:
-    """Makes a single async LLM call and returns a parsed Verdict."""
     start = time.time()
 
     kwargs = {
         "model": judge_model,
         "messages": [{"role": "user", "content": prompt_text}],
-        "temperature": 0.0,
+        "temperature": temperature,
         "max_tokens": 512,
     }
 
-    # only OpenAI models reliably support response_format
     if "gpt" in judge_model:
         kwargs["response_format"] = {"type": "json_object"}
 
@@ -140,33 +134,35 @@ async def _call_judge(
         raw = f'{{"winner": "tie", "criteria_scores": {{}}, "reasoning": "Judge call failed: {str(e)}"}}'
 
     latency_ms = round((time.time() - start) * 1000, 1)
-    return _parse_verdict(raw, judge_model, order, latency_ms, criteria)
+    return _parse_verdict(raw, judge_model, order, latency_ms, criteria, temperature)
 
 
 async def run_audit(
     request: AuditRequest,
     byok_key: Optional[str] = None,
 ) -> List[Verdict]:
-    """
-    Fans out all judge calls with a semaphore to avoid overwhelming the API.
-    """
     judges = request.judges or settings.default_judges
     criteria = request.criteria or settings.default_criteria
     n_samples = request.n_samples or settings.default_n_samples
+    temperatures = request.temperatures or [0.0]
 
-    # limit to 5 concurrent calls at a time
     semaphore = asyncio.Semaphore(5)
 
-    async def throttled_call(prompt_text, order, judge):
+    async def throttled_call(prompt_text, order, judge, temp):
         async with semaphore:
-            return await _call_judge(prompt_text, order, judge, criteria, byok_key)
+            return await _call_judge(
+                prompt_text, order, judge, criteria, temp, byok_key
+            )
 
     tasks = []
-    for _ in range(n_samples):
-        prompts = build_evaluation_prompts(request, criteria)
-        for prompt_text, order in prompts:
-            for judge in judges:
-                tasks.append(throttled_call(prompt_text, order, judge))
+    for temp in temperatures:
+        for _ in range(n_samples):
+            prompts = build_evaluation_prompts(request, criteria)
+            for prompt_text, order in prompts:
+                for judge in judges:
+                    tasks.append(
+                        throttled_call(prompt_text, order, judge, temp)
+                    )
 
     verdicts = await asyncio.gather(*tasks, return_exceptions=False)
     return list(verdicts)

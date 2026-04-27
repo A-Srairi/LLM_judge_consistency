@@ -2,6 +2,8 @@ import uuid
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
+from app.services.stats.temperature import compute_temperature_sensitivity
+
 
 from app.config import get_settings
 from app.models import (
@@ -84,6 +86,14 @@ async def create_audit(
         reliability_score, ci = compute_bootstrap_ci(verdicts)
         shapley = compute_shapley_attribution(verdicts, criteria)
 
+        # temperature sensitivity — only meaningful if multiple temps were requested
+        temperatures_used = request.temperatures or [0.0]
+        temp_sensitivity = None
+        if len(temperatures_used) > 1:
+            temp_sensitivity = compute_temperature_sensitivity(
+                verdicts, judges, temperatures_used
+            )
+
         # 3. overall winner — majority vote across all verdicts
         from collections import Counter
         winner_counts = Counter(v.winner for v in verdicts)
@@ -109,6 +119,8 @@ async def create_audit(
             criteria_used=criteria,
             n_samples=request.n_samples or settings.default_n_samples,
             verdicts=verdicts,
+            temperatures_used=temperatures_used,
+            temperature_sensitivity=temp_sensitivity,
             reliability_score=reliability_score,
             confidence_interval=ci,
             positional_bias=positional_bias,
