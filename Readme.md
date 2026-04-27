@@ -166,8 +166,8 @@ Health check.
 
 ```bash
 # 1. Clone
-git clone https://github.com/A-Srairi/llm-judge-auditor
-cd llm-judge-auditor
+git clone https://github.com/A-Srairi/LLM_judge_consistency
+cd LLM_judge_consistency
 
 # 2. Backend
 cd backend
